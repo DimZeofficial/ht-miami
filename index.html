@@ -1,35 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <title>Hotline Miami: Booted Down</title>
     <style>
-        body { margin: 0; background: #000; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: sans-serif; }
-        canvas { width: 800px; height: 600px; background: #111; border: 2px solid #333; }
-        #status { margin-top: 10px; color: #888; font-size: 14px; }
+        body { margin: 0; background: #000; color: #ff00ff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
+        canvas { width: 800px; height: 600px; border: 4px solid #ff00ff; box-shadow: 0 0 20px #ff00ff; }
+        #status { margin-top: 15px; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Preparing emulator...</div>
+    <div id="status">Syncing Files...</div>
 
     <script>
-        // 1. Define the Module object FIRST
-var Module = {
-    canvas: document.getElementById('canvas'),
-    // Adjusted arguments to ensure the emulator parses the path correctly
-    arguments: ["HotlineMiami.exe"], 
-    print: function(text) { console.log(text); },
-    setStatus: function(text) {
-        if (document.getElementById('status')) {
-            document.getElementById('status').innerHTML = text;
-        }
-    },
-    onRuntimeInitialized: function() {
-        console.log("Emulator engine loaded.");
-    }
-};
-
+        var Module = {
+            canvas: document.getElementById('canvas'),
+            // We are using -mount to tell the emulator where your unzipped files are
+            arguments: ["-mount", "./", "/home/username/.wine/dosdevices/d:", "-p", "d:/HotlineMiami.exe"],
+            print: function(text) { console.log(text); },
+            setStatus: function(text) { 
+                document.getElementById('status').innerHTML = text;
+            },
+            onRuntimeInitialized: function() {
+                Module.setStatus("Running...");
+            }
+        };
+    </script>
     <script async src="boxedwine.js"></script>
 </body>
 </html>
