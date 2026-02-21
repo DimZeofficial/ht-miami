@@ -4,28 +4,28 @@
     <meta charset="UTF-8">
     <title>Hotline Miami: Booted Down</title>
     <style>
-        body { margin: 0; background: #000; color: #00ff00; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
-        canvas { width: 800px; height: 600px; border: 2px solid #333; background: #111; }
+        body { margin: 0; background: #000; color: #ff00ff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
+        canvas { width: 800px; height: 600px; border: 2px solid #ff00ff; background: #111; }
         #status { margin-top: 15px; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Syncing Individual Files...</div>
+    <div id="status">Loading Game Packages...</div>
 
     <script>
         var Module = {
             canvas: document.getElementById('canvas'),
-            // We combine the mount and the execute command into a single path string
-            // to bypass the "-p" parsing error.
-            arguments: ["-mount_drive", ".", "d", "d:\\HotlineMiami.exe"],
+            // We tell the emulator to load both zips into the virtual drive
+            // and then execute the program from that combined space.
+            arguments: ["-app", "engine.zip", "-app", "data.zip", "HotlineMiami.exe"],
             print: function(text) { console.log(text); },
             setStatus: function(text) { 
                 const status = document.getElementById('status');
                 if (status) status.innerHTML = text;
             },
             onRuntimeInitialized: function() {
-                console.log("Engine Ready");
+                console.log("Packages Loaded");
                 Module.setStatus("Running...");
             }
         };
