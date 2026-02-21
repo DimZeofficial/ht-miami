@@ -1,34 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Hotline Miami: Booted Down</title>
-    <style>
-        body { margin: 0; background: #000; color: #ff00ff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
-        canvas { width: 800px; height: 600px; border: 2px solid #ff00ff; background: #111; }
-        #status { margin-top: 15px; text-transform: uppercase; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotline Miami</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      max-width: 800px;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: #ff3c3c;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      background: #000;
+      border: 2px solid #ff3c3c;
+      display: none; /* hidden until game starts */
+    }
+
+    canvas#canvas {
+      width: 800px;
+      height: 600px;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    #launch-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 40px;
+      border: 2px solid #333;
+      background: #111;
+      width: 500px;
+    }
+
+    #launch-screen p {
+      font-size: 0.85rem;
+      color: #888;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    #play-btn {
+      background: #ff3c3c;
+      color: #000;
+      border: none;
+      padding: 14px 48px;
+      font-size: 1.1rem;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #play-btn:hover {
+      background: #ff6060;
+    }
+
+    #play-btn:disabled {
+      background: #444;
+      color: #888;
+      cursor: not-allowed;
+    }
+
+    #status {
+      font-size: 0.8rem;
+      color: #ff3c3c;
+      text-align: center;
+      min-height: 20px;
+      letter-spacing: 1px;
+    }
+
+    #progress-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: #222;
+      display: none;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #ff3c3c;
+      transition: width 0.2s;
+    }
+
+    #fullscreen-btn {
+      background: transparent;
+      color: #888;
+      border: 1px solid #444;
+      padding: 6px 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      letter-spacing: 1px;
+      display: none;
+    }
+
+    #fullscreen-btn:hover {
+      border-color: #ff3c3c;
+      color: #ff3c3c;
+    }
+
+    #warning {
+      font-size: 0.7rem;
+      color: #555;
+      text-align: center;
+      max-width: 500px;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Loading Packages...</div>
 
-    <script>
-        var Module = {
-            canvas: document.getElementById('canvas'),
-            // This order is vital: load engine (exe) and data (music), then run the exe
-            arguments: ["-app", "engine.zip", "-app", "data.zip", "HotlineMiami.exe"],
-            print: function(text) { console.log(text); },
-            setStatus: function(text) { 
-                const status = document.getElementById('status');
-                if (status) status.innerHTML = text;
-            },
-            onRuntimeInitialized: function() {
-                console.log("Ready to play.");
-                Module.setStatus("Running...");
-            }
-        };
-    </script>
-    <script async src="boxedwine.js"></script>
+  <div id="container">
+    <h1>Hotline Miami</h1>
+
+    <!-- Launch screen shown before game starts -->
+    <div id="launch-screen">
+      <p>
+        Running via Boxedwine in your browser.<br/>
+        First load may take a moment while the game files are unpacked into memory.
+      </p>
+
+      <div id="progress-bar-wrap">
+        <div id="progress-bar"></div>
+      </div>
+
+      <button id="play-btn" onclick="startGame()">▶ PLAY</button>
+      <div id="status">Ready.</div>
+    </div>
+
+    <!-- Canvas shown once Boxedwine starts -->
+    <div id="canvas-wrapper">
+      <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    </div>
+
+    <button id="fullscreen-btn" onclick="goFullscreen()">⛶ FULLSCREEN</button>
+
+    <p id="warning">
+      Best played in Chrome or Firefox. Click the game window to capture mouse/keyboard input.
+      Press Escape to release the mouse pointer.
+    </p>
+  </div>
+
+  <!--
+    ─────────────────────────────────────────────────────────────
+    BOXEDWINE SCRIPT
+    Download the Boxedwine emscripten web build from:
+      https://github.com/danoon2/Boxedwine/releases
+    or build it yourself. You need at minimum:
+      - boxedwine.js
+      - boxedwine.wasm
+    Place them in the same folder as this index.html.
+    ─────────────────────────────────────────────────────────────
+  -->
+  <script>
+    // ─── CONFIG — edit these to match your game ───────────────
+    const GAME_ZIP     = "./game.zip";       // path to your zipped game folder
+    const GAME_EXE     = "HotlineMiami.exe"; // the exe filename inside the zip
+    const GAME_DIR     = "C:/game";          // where the zip will be mounted
+    const CANVAS_W     = 800;
+    const CANVAS_H     = 600;
+    // ──────────────────────────────────────────────────────────
+
+    let gameStarted = false;
+
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+
+    function setProgress(pct) {
+      const wrap = document.getElementById("progress-bar-wrap");
+      const bar  = document.getElementById("progress-bar");
+      wrap.style.display = "block";
+      bar.style.width = pct + "%";
+    }
+
+    function startGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+
+      const btn = document.getElementById("play-btn");
+      btn.disabled = true;
+      btn.textContent = "Loading...";
+      setStatus("Downloading game files...");
+      setProgress(5);
+
+      // ── Emscripten Module config for Boxedwine ──────────────
+      // The exact options depend on your Boxedwine build.
+      // Common ones are listed here; check the Boxedwine docs
+      // or source if something doesn't match your version.
+      window.Module = {
+        canvas: document.getElementById("canvas"),
+
+        // Arguments passed to boxedwine's internal command line.
+        // -root sets the filesystem root.
+        // Last args are the path to the exe to run.
+        arguments: [
+          "-root", GAME_DIR,
+          "-zip",  GAME_ZIP,
+          GAME_EXE
+        ],
+
+        // Called with download progress (0.0 → 1.0)
+        setStatus: function(text) {
+          if (text) {
+            setStatus(text);
+          }
+        },
+
+        monitorRunDependencies: function(left) {
+          if (left === 0) {
+            setStatus("Starting...");
+            setProgress(100);
+
+            // Swap launch screen for canvas
+            setTimeout(() => {
+              document.getElementById("launch-screen").style.display = "none";
+              document.getElementById("canvas-wrapper").style.display = "block";
+              document.getElementById("fullscreen-btn").style.display = "inline-block";
+              document.getElementById("canvas").focus();
+            }, 300);
+          }
+        },
+
+        // Download progress hook
+        locateFile: function(path) {
+          return "./" + path;
+        },
+
+        // If Boxedwine uses a custom zip-loading mechanism,
+        // you may need to pass the zip URL differently.
+        // Some builds use Module.zipUrl instead of arguments:
+        zipUrl: GAME_ZIP,
+        exeName: GAME_EXE,
+
+        // Suppress the default emscripten status div
+        noInitialRun: false,
+
+        print: function(text)    { console.log("[bw]", text); },
+        printErr: function(text) { console.warn("[bw err]", text); },
+
+        // Track WASM download progress for the progress bar
+        onRuntimeInitialized: function() {
+          setStatus("Initializing...");
+          setProgress(80);
+        },
+
+        totalDependencies: 0,
+      };
+
+      // Hook into XMLHttpRequest to show download progress
+      // for the game zip and wasm file
+      const origOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url) {
+        this.addEventListener("progress", function(e) {
+          if (e.lengthComputable && url.endsWith(".zip")) {
+            const pct = Math.round((e.loaded / e.total) * 70) + 10;
+            setProgress(pct);
+            const mb = (e.loaded / 1048576).toFixed(1);
+            setStatus("Downloading: " + mb + " MB");
+          }
+        });
+        origOpen.apply(this, arguments);
+      };
+
+      // Dynamically load boxedwine.js
+      // (it will read window.Module automatically)
+      const script = document.createElement("script");
+      script.src = "./boxedwine.js";
+      script.onerror = function() {
+        setStatus("ERROR: Could not load boxedwine.js — is it in the same folder?");
+        btn.disabled = false;
+        btn.textContent = "▶ PLAY";
+        gameStarted = false;
+      };
+      document.body.appendChild(script);
+    }
+
+    function goFullscreen() {
+      const wrapper = document.getElementById("canvas-wrapper");
+      if (wrapper.requestFullscreen) {
+        wrapper.requestFullscreen();
+      } else if (wrapper.webkitRequestFullscreen) {
+        wrapper.webkitRequestFullscreen();
+      }
+    }
+
+    // Re-focus canvas on click so keyboard/mouse input is captured
+    document.getElementById("canvas-wrapper")?.addEventListener("click", function() {
+      document.getElementById("canvas").focus();
+    });
+  </script>
+
 </body>
 </html>
