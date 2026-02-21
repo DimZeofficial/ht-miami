@@ -11,13 +11,13 @@
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Initializing Virtual Drive...</div>
+    <div id="status">Mounting Virtual Drive...</div>
 
     <script>
         var Module = {
             canvas: document.getElementById('canvas'),
-            // -mount_drive "." d: tells Boxedwine to treat this folder as drive D:
-            // -p d:/HotlineMiami.exe tells it exactly which file to launch from that drive
+            // -mount_drive "." d: maps your GitHub folder to drive D in the emulator
+            // -p d:/HotlineMiami.exe runs the specific game from that drive
             arguments: ["-mount_drive", ".", "d", "-p", "d:/HotlineMiami.exe"],
             print: function(text) { console.log(text); },
             setStatus: function(text) { 
@@ -25,7 +25,7 @@
                 if (status) status.innerHTML = text;
             },
             onRuntimeInitialized: function() {
-                console.log("Emulator engine ready.");
+                console.log("Engine Ready");
                 Module.setStatus("Running Hotline Miami...");
             }
         };
