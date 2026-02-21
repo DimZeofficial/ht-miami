@@ -11,13 +11,12 @@
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Loading Game Packages...</div>
+    <div id="status">Loading Packages...</div>
 
     <script>
         var Module = {
             canvas: document.getElementById('canvas'),
-            // We tell the emulator to load both zips into the virtual drive
-            // and then execute the program from that combined space.
+            // This order is vital: load engine (exe) and data (music), then run the exe
             arguments: ["-app", "engine.zip", "-app", "data.zip", "HotlineMiami.exe"],
             print: function(text) { console.log(text); },
             setStatus: function(text) { 
@@ -25,7 +24,7 @@
                 if (status) status.innerHTML = text;
             },
             onRuntimeInitialized: function() {
-                console.log("Packages Loaded");
+                console.log("Ready to play.");
                 Module.setStatus("Running...");
             }
         };
