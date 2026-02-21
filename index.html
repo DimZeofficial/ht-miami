@@ -4,28 +4,28 @@
     <meta charset="UTF-8">
     <title>Hotline Miami: Booted Down</title>
     <style>
-        body { margin: 0; background: #000; color: #ff00ff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
-        canvas { width: 800px; height: 600px; border: 4px solid #ff00ff; box-shadow: 0 0 20px #ff00ff; background: #111; }
-        #status { margin-top: 15px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px #ff00ff; }
+        body { margin: 0; background: #000; color: #00ff00; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
+        canvas { width: 800px; height: 600px; border: 2px solid #333; background: #111; }
+        #status { margin-top: 15px; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Syncing Files...</div>
+    <div id="status">Initializing Virtual Drive...</div>
 
     <script>
         var Module = {
             canvas: document.getElementById('canvas'),
-            // -mount_drive "." d: mounts your current unzipped files to the D: drive
-            // -p d:/HotlineMiami.exe runs the specific program from that drive
+            // -mount_drive "." d: tells Boxedwine to treat this folder as drive D:
+            // -p d:/HotlineMiami.exe tells it exactly which file to launch from that drive
             arguments: ["-mount_drive", ".", "d", "-p", "d:/HotlineMiami.exe"],
             print: function(text) { console.log(text); },
             setStatus: function(text) { 
-                const statusElement = document.getElementById('status');
-                if (statusElement) statusElement.innerHTML = text;
+                const status = document.getElementById('status');
+                if (status) status.innerHTML = text;
             },
             onRuntimeInitialized: function() {
-                console.log("Runtime Ready");
+                console.log("Emulator engine ready.");
                 Module.setStatus("Running Hotline Miami...");
             }
         };
