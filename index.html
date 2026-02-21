@@ -15,18 +15,20 @@
 
     <script>
         // 1. Define the Module object FIRST
-        var Module = {
-            canvas: document.getElementById('canvas'),
-            arguments: ["-p", "HotlineMiami.exe"],
-            print: function(text) { console.log(text); },
-            setStatus: function(text) {
-                document.getElementById('status').innerHTML = text;
-            },
-            onRuntimeInitialized: function() {
-                Module.setStatus("Running Hotline Miami...");
-            }
-        };
-    </script>
+var Module = {
+    canvas: document.getElementById('canvas'),
+    // Adjusted arguments to ensure the emulator parses the path correctly
+    arguments: ["HotlineMiami.exe"], 
+    print: function(text) { console.log(text); },
+    setStatus: function(text) {
+        if (document.getElementById('status')) {
+            document.getElementById('status').innerHTML = text;
+        }
+    },
+    onRuntimeInitialized: function() {
+        console.log("Emulator engine loaded.");
+    }
+};
 
     <script async src="boxedwine.js"></script>
 </body>
