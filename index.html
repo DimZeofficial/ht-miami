@@ -4,24 +4,30 @@
     <meta charset="UTF-8">
     <title>Hotline Miami: Booted Down</title>
     <style>
-        body { margin: 0; background: #000; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        canvas { width: 100%; height: auto; image-rendering: pixelated; }
+        body { margin: 0; background: #000; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        canvas { width: 800px; height: 600px; background: #111; border: 2px solid #333; }
+        #status { margin-top: 10px; color: #888; font-size: 14px; }
     </style>
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <div id="status">Preparing emulator...</div>
 
-    <script src="boxedwine.js"></script>
     <script>
+        // 1. Define the Module object FIRST
         var Module = {
             canvas: document.getElementById('canvas'),
-            arguments: ["-p", "HotlineMiami.exe"], // Tells the emulator to run your exe
-            print: (text) => console.log(text),
-            printErr: (text) => console.error(text),
+            arguments: ["-p", "HotlineMiami.exe"],
+            print: function(text) { console.log(text); },
+            setStatus: function(text) {
+                document.getElementById('status').innerHTML = text;
+            },
             onRuntimeInitialized: function() {
-                console.log("Emulator Ready!");
+                Module.setStatus("Running Hotline Miami...");
             }
         };
     </script>
+
+    <script async src="boxedwine.js"></script>
 </body>
 </html>
