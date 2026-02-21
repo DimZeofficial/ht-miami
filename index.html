@@ -5,20 +5,20 @@
     <title>Hotline Miami: Booted Down</title>
     <style>
         body { margin: 0; background: #000; color: #00ff00; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
-        canvas { width: 800px; height: 600px; border: 2px solid #333; background: #111; }
+        canvas { width: 800px; height: 600px; border: 2px solid #333; background: #111; image-rendering: pixelated; }
         #status { margin-top: 15px; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Mounting Virtual Drive...</div>
+    <div id="status">Syncing Game Files...</div>
 
     <script>
         var Module = {
             canvas: document.getElementById('canvas'),
-            // -mount_drive "." d: maps your GitHub folder to drive D in the emulator
-            // -p d:/HotlineMiami.exe runs the specific game from that drive
-            arguments: ["-mount_drive", ".", "d", "-p", "d:/HotlineMiami.exe"],
+            // Removed the -p flag and used a direct path string
+            // This forces the emulator to look for the file on the mounted virtual drive
+            arguments: ["-mount_drive", ".", "d", "d:/HotlineMiami.exe"],
             print: function(text) { console.log(text); },
             setStatus: function(text) { 
                 const status = document.getElementById('status');
