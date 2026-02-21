@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Hotline Miami: Booted Down</title>
     <style>
         body { margin: 0; background: #000; color: #ff00ff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
-        canvas { width: 800px; height: 600px; border: 4px solid #ff00ff; box-shadow: 0 0 20px #ff00ff; }
-        #status { margin-top: 15px; text-transform: uppercase; letter-spacing: 2px; }
+        canvas { width: 800px; height: 600px; border: 4px solid #ff00ff; box-shadow: 0 0 20px #ff00ff; background: #111; }
+        #status { margin-top: 15px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px #ff00ff; }
     </style>
 </head>
 <body>
@@ -16,14 +16,17 @@
     <script>
         var Module = {
             canvas: document.getElementById('canvas'),
-            // We are using -mount to tell the emulator where your unzipped files are
-            arguments: ["-mount", "./", "/home/username/.wine/dosdevices/d:", "-p", "d:/HotlineMiami.exe"],
+            // -mount_drive "." d: mounts your current unzipped files to the D: drive
+            // -p d:/HotlineMiami.exe runs the specific program from that drive
+            arguments: ["-mount_drive", ".", "d", "-p", "d:/HotlineMiami.exe"],
             print: function(text) { console.log(text); },
             setStatus: function(text) { 
-                document.getElementById('status').innerHTML = text;
+                const statusElement = document.getElementById('status');
+                if (statusElement) statusElement.innerHTML = text;
             },
             onRuntimeInitialized: function() {
-                Module.setStatus("Running...");
+                console.log("Runtime Ready");
+                Module.setStatus("Running Hotline Miami...");
             }
         };
     </script>
