@@ -5,20 +5,20 @@
     <title>Hotline Miami: Booted Down</title>
     <style>
         body { margin: 0; background: #000; color: #00ff00; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', monospace; }
-        canvas { width: 800px; height: 600px; border: 2px solid #333; background: #111; image-rendering: pixelated; }
-        #status { margin-top: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        canvas { width: 800px; height: 600px; border: 2px solid #333; background: #111; }
+        #status { margin-top: 15px; text-transform: uppercase; }
     </style>
 </head>
 <body>
     <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-    <div id="status">Syncing Game Files...</div>
+    <div id="status">Syncing Individual Files...</div>
 
     <script>
         var Module = {
             canvas: document.getElementById('canvas'),
-            // Removed the -p flag and used a direct path string
-            // This forces the emulator to look for the file on the mounted virtual drive
-            arguments: ["-mount_drive", ".", "d", "d:/HotlineMiami.exe"],
+            // We combine the mount and the execute command into a single path string
+            // to bypass the "-p" parsing error.
+            arguments: ["-mount_drive", ".", "d", "d:\\HotlineMiami.exe"],
             print: function(text) { console.log(text); },
             setStatus: function(text) { 
                 const status = document.getElementById('status');
@@ -26,7 +26,7 @@
             },
             onRuntimeInitialized: function() {
                 console.log("Engine Ready");
-                Module.setStatus("Running Hotline Miami...");
+                Module.setStatus("Running...");
             }
         };
     </script>
