@@ -147,6 +147,7 @@
 </head>
 <body>
 
+<<<<<<< HEAD
   <div id="container">
     <h1>Hotline Miami</h1>
 
@@ -191,7 +192,7 @@
   -->
   <script>
     // ─── CONFIG — edit these to match your game ───────────────
-    const GAME_ZIP = "https://ht-miami.67adam89.workers.dev/"; // path to your zipped game folder
+    const GAME_ZIP = "https://ht-miami.67adam89.workers.dev/";
     const GAME_EXE     = "HotlineMiami.exe"; // the exe filename inside the zip
     const GAME_DIR     = "C:/game";          // where the zip will be mounted
     const CANVAS_W     = 800;
@@ -328,5 +329,188 @@
     });
   </script>
 
+=======
+  <div id="container">
+    <h1>Hotline Miami</h1>
+
+    <!-- Launch screen shown before game starts -->
+    <div id="launch-screen">
+      <p>
+        Running via Boxedwine in your browser.<br/>
+        First load may take a moment while the game files are unpacked into memory.
+      </p>
+
+      <div id="progress-bar-wrap">
+        <div id="progress-bar"></div>
+      </div>
+
+      <button id="play-btn" onclick="startGame()">▶ PLAY</button>
+      <div id="status">Ready.</div>
+    </div>
+
+    <!-- Canvas shown once Boxedwine starts -->
+    <div id="canvas-wrapper">
+      <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    </div>
+
+    <button id="fullscreen-btn" onclick="goFullscreen()">⛶ FULLSCREEN</button>
+
+    <p id="warning">
+      Best played in Chrome or Firefox. Click the game window to capture mouse/keyboard input.
+      Press Escape to release the mouse pointer.
+    </p>
+  </div>
+
+  <!--
+    ─────────────────────────────────────────────────────────────
+    BOXEDWINE SCRIPT
+    Download the Boxedwine emscripten web build from:
+      https://github.com/danoon2/Boxedwine/releases
+    or build it yourself. You need at minimum:
+      - boxedwine.js
+      - boxedwine.wasm
+    Place them in the same folder as this index.html.
+    ─────────────────────────────────────────────────────────────
+  -->
+  <script>
+    // ─── CONFIG — edit these to match your game ───────────────
+    const GAME_ZIP = "https://ht-miami.67adam89.workers.dev/";
+    const GAME_EXE     = "HotlineMiami.exe"; // the exe filename inside the zip
+    const GAME_DIR     = "C:/game";          // where the zip will be mounted
+    const CANVAS_W     = 800;
+    const CANVAS_H     = 600;
+    // ──────────────────────────────────────────────────────────
+
+    let gameStarted = false;
+
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+
+    function setProgress(pct) {
+      const wrap = document.getElementById("progress-bar-wrap");
+      const bar  = document.getElementById("progress-bar");
+      wrap.style.display = "block";
+      bar.style.width = pct + "%";
+    }
+
+    function startGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+
+      const btn = document.getElementById("play-btn");
+      btn.disabled = true;
+      btn.textContent = "Loading...";
+      setStatus("Downloading game files...");
+      setProgress(5);
+
+      // ── Emscripten Module config for Boxedwine ──────────────
+      // The exact options depend on your Boxedwine build.
+      // Common ones are listed here; check the Boxedwine docs
+      // or source if something doesn't match your version.
+      window.Module = {
+        canvas: document.getElementById("canvas"),
+
+        // Arguments passed to boxedwine's internal command line.
+        // -root sets the filesystem root.
+        // Last args are the path to the exe to run.
+        arguments: [
+          "-root", GAME_DIR,
+          "-zip",  GAME_ZIP,
+          GAME_EXE
+        ],
+
+        // Called with download progress (0.0 → 1.0)
+        setStatus: function(text) {
+          if (text) {
+            setStatus(text);
+          }
+        },
+
+        monitorRunDependencies: function(left) {
+          if (left === 0) {
+            setStatus("Starting...");
+            setProgress(100);
+
+            // Swap launch screen for canvas
+            setTimeout(() => {
+              document.getElementById("launch-screen").style.display = "none";
+              document.getElementById("canvas-wrapper").style.display = "block";
+              document.getElementById("fullscreen-btn").style.display = "inline-block";
+              document.getElementById("canvas").focus();
+            }, 300);
+          }
+        },
+
+        // Download progress hook
+        locateFile: function(path) {
+          return "./" + path;
+        },
+
+        // If Boxedwine uses a custom zip-loading mechanism,
+        // you may need to pass the zip URL differently.
+        // Some builds use Module.zipUrl instead of arguments:
+        zipUrl: GAME_ZIP,
+        exeName: GAME_EXE,
+
+        // Suppress the default emscripten status div
+        noInitialRun: false,
+
+        print: function(text)    { console.log("[bw]", text); },
+        printErr: function(text) { console.warn("[bw err]", text); },
+
+        // Track WASM download progress for the progress bar
+        onRuntimeInitialized: function() {
+          setStatus("Initializing...");
+          setProgress(80);
+        },
+
+        totalDependencies: 0,
+      };
+
+      // Hook into XMLHttpRequest to show download progress
+      // for the game zip and wasm file
+      const origOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url) {
+        this.addEventListener("progress", function(e) {
+          if (e.lengthComputable && url.endsWith(".zip")) {
+            const pct = Math.round((e.loaded / e.total) * 70) + 10;
+            setProgress(pct);
+            const mb = (e.loaded / 1048576).toFixed(1);
+            setStatus("Downloading: " + mb + " MB");
+          }
+        });
+        origOpen.apply(this, arguments);
+      };
+
+      // Dynamically load boxedwine.js
+      // (it will read window.Module automatically)
+      const script = document.createElement("script");
+      script.src = "./boxedwine.js";
+      script.onerror = function() {
+        setStatus("ERROR: Could not load boxedwine.js — is it in the same folder?");
+        btn.disabled = false;
+        btn.textContent = "▶ PLAY";
+        gameStarted = false;
+      };
+      document.body.appendChild(script);
+    }
+
+    function goFullscreen() {
+      const wrapper = document.getElementById("canvas-wrapper");
+      if (wrapper.requestFullscreen) {
+        wrapper.requestFullscreen();
+      } else if (wrapper.webkitRequestFullscreen) {
+        wrapper.webkitRequestFullscreen();
+      }
+    }
+
+    // Re-focus canvas on click so keyboard/mouse input is captured
+    document.getElementById("canvas-wrapper")?.addEventListener("click", function() {
+      document.getElementById("canvas").focus();
+    });
+  </script>
+
+>>>>>>> fc46e625272c4be53fa9fa24e84cb8b2e580d502
 </body>
 </html>
