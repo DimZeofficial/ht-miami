@@ -148,6 +148,7 @@
                   offset += chunks[i].length;
                 }
                 zipDataGlobal = zipData;
+                console.log("Download complete, size:", zipDataGlobal.length);
                 loadEngine();
                 return;
               }
@@ -187,30 +188,34 @@
         onRuntimeInitialized: function() {},
 
         preRun: [function() {
-          // Pause execution until we finish extracting files
+          console.log("preRun fired, adding dependency");
           Module.addRunDependency("extract-zip");
 
           setStatus("Extracting files...");
           setProgress(75);
 
-  JSZip.loadAsync(zipDataGlobal).then(function(zip) {
-  var files = [];
-  zip.forEach(function(relativePath, entry) {
-    if (!entry.dir) files.push({ path: relativePath, entry: entry });
-  });
+          console.log("zipDataGlobal size:", zipDataGlobal ? zipDataGlobal.length : "NULL");
 
-  // Pre-create base directories
-  try { FS.mkdir("/libsdl"); } catch(e) {}
-  try { FS.mkdir("/libsdl/Boxedwine"); } catch(e) {}
-  try { FS.mkdir("/libsdl/Boxedwine/root"); } catch(e) {}
-  try { FS.mkdir("/libsdl/Boxedwine/root/c"); } catch(e) {}
+          JSZip.loadAsync(zipDataGlobal).then(function(zip) {
+            var files = [];
+            zip.forEach(function(relativePath, entry) {
+              if (!entry.dir) files.push({ path: relativePath, entry: entry });
+            });
+            console.log("files to extract:", files.length);
+
+            // Pre-create base directories
+            try { FS.mkdir("/libsdl"); } catch(e) {}
+            try { FS.mkdir("/libsdl/Boxedwine"); } catch(e) {}
+            try { FS.mkdir("/libsdl/Boxedwine/root"); } catch(e) {}
+            try { FS.mkdir("/libsdl/Boxedwine/root/c"); } catch(e) {}
+            console.log("base dirs created");
 
             var total = files.length;
             var done = 0;
 
             function processNext(index) {
               if (index >= files.length) {
-                // All files written — resume Boxedwine
+                console.log("all files extracted, removing dependency");
                 Module.removeRunDependency("extract-zip");
                 setStatus("Starting game...");
                 setProgress(100);
@@ -228,21 +233,25 @@
                 var cleanPath = f.path.replace(/^c\//, "");
                 var dest = "/libsdl/Boxedwine/root/c/" + cleanPath;
 
-                // Create parent directories
                 var parts = dest.split("/");
                 for (var i = 2; i < parts.length - 1; i++) {
                   var dir = parts.slice(0, i + 1).join("/");
                   try { FS.mkdir(dir); } catch(e) {}
                 }
 
-                FS.writeFile(dest, data);
+                try {
+                  FS.writeFile(dest, data);
+                } catch(e) {
+                  console.error("writeFile failed for", dest, e);
+                }
+
                 done++;
                 setProgress(75 + Math.round((done / total) * 20));
                 setStatus("Extracting: " + done + " / " + total + " files");
                 processNext(index + 1);
               }).catch(function(err) {
+                console.error("ERROR on file", f.path, err);
                 setStatus("ERROR on file " + f.path + ": " + err.message);
-                console.error(err);
               });
             }
 
@@ -250,7 +259,7 @@
 
           }).catch(function(err) {
             setStatus("ERROR extracting zip: " + err.message);
-            console.error(err);
+            console.error("JSZip error:", err);
           });
         }]
       };
