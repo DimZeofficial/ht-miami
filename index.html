@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hotline Miami</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -145,13 +146,13 @@
                   zipData.set(chunks[i], offset);
                   offset += chunks[i].length;
                 }
-                launchBoxedwine(zipData);
+                extractAndLaunch(zipData);
                 return;
               }
               chunks.push(result.value);
               received += result.value.length;
               if (contentLength) {
-                var pct = Math.round((received / contentLength) * 75) + 5;
+                var pct = Math.round((received / parseInt(contentLength)) * 60) + 5;
                 setProgress(pct);
                 setStatus("Downloading: " + (received / 1048576).toFixed(1) + " MB");
               }
@@ -162,35 +163,67 @@
         })
         .catch(function(err) {
           setStatus("ERROR fetching zip: " + err.message);
-          var btn = document.getElementById("play-btn");
-          btn.disabled = false;
-          btn.textContent = "&#9654; PLAY";
+          document.getElementById("play-btn").disabled = false;
+          document.getElementById("play-btn").textContent = "&#9654; PLAY";
           gameStarted = false;
         });
     }
 
-    function launchBoxedwine(zipData) {
-      setStatus("Initializing...");
-      setProgress(85);
+    function extractAndLaunch(zipData) {
+      setStatus("Extracting files...");
+      setProgress(70);
+
+      JSZip.loadAsync(zipData).then(function(zip) {
+        var files = [];
+        zip.forEach(function(relativePath, entry) {
+          if (!entry.dir) files.push({ path: relativePath, entry: entry });
+        });
+
+        var total = files.length;
+        var done = 0;
+
+        var promises = files.map(function(f) {
+          return f.entry.async("uint8array").then(function(data) {
+            // Strip leading "c/" prefix and write to /root/c/
+            var cleanPath = f.path.replace(/^c\//, "");
+            var dest = "/root/c/" + cleanPath;
+
+            // Create parent directories
+            var parts = dest.split("/");
+            for (var i = 1; i < parts.length - 1; i++) {
+              var dir = parts.slice(0, i + 1).join("/");
+              try { FS.mkdir(dir); } catch(e) {}
+            }
+
+            FS.writeFile(dest, data);
+            done++;
+            setProgress(70 + Math.round((done / total) * 20));
+            setStatus("Extracting: " + done + " / " + total + " files");
+          });
+        });
+
+        return Promise.all(promises);
+      }).then(function() {
+        launchBoxedwine();
+      }).catch(function(err) {
+        setStatus("ERROR extracting zip: " + err.message);
+        console.error(err);
+      });
+    }
+
+    function launchBoxedwine() {
+      setStatus("Starting...");
+      setProgress(100);
 
       window.Module = {
         canvas: document.getElementById("canvas"),
 
-arguments: ["-zip", "/game.zip", "-root", "/libsdl/Boxedwine/root", "c:/HotlineMiami.exe"],
-
-        zipUrl:  "/game.zip",
-        exeName: "HotlineMiami.exe",
-
-        preRun: [function() {
-          FS.writeFile("/game.zip", zipData);
-        }],
+        arguments: ["C:/HotlineMiami.exe"],
 
         setStatus: function(text) { if (text) setStatus(text); },
 
         monitorRunDependencies: function(left) {
           if (left === 0) {
-            setStatus("Starting...");
-            setProgress(100);
             setTimeout(function() {
               document.getElementById("launch-screen").style.display = "none";
               document.getElementById("canvas-wrapper").style.display = "block";
@@ -203,7 +236,7 @@ arguments: ["-zip", "/game.zip", "-root", "/libsdl/Boxedwine/root", "c:/HotlineM
         locateFile: function(path) { return "./" + path; },
         print:    function(text) { console.log("[bw]", text); },
         printErr: function(text) { console.warn("[bw err]", text); },
-        onRuntimeInitialized: function() { setProgress(90); },
+        onRuntimeInitialized: function() { setProgress(95); },
         totalDependencies: 0,
       };
 
@@ -211,9 +244,6 @@ arguments: ["-zip", "/game.zip", "-root", "/libsdl/Boxedwine/root", "c:/HotlineM
       script.src = "./boxedwine.js";
       script.onerror = function() {
         setStatus("ERROR: Could not load boxedwine.js");
-        document.getElementById("play-btn").disabled = false;
-        document.getElementById("play-btn").textContent = "&#9654; PLAY";
-        gameStarted = false;
       };
       document.body.appendChild(script);
     }
