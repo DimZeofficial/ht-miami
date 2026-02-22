@@ -193,11 +193,17 @@
           setStatus("Extracting files...");
           setProgress(75);
 
-          JSZip.loadAsync(zipDataGlobal).then(function(zip) {
-            var files = [];
-            zip.forEach(function(relativePath, entry) {
-              if (!entry.dir) files.push({ path: relativePath, entry: entry });
-            });
+  JSZip.loadAsync(zipDataGlobal).then(function(zip) {
+  var files = [];
+  zip.forEach(function(relativePath, entry) {
+    if (!entry.dir) files.push({ path: relativePath, entry: entry });
+  });
+
+  // Pre-create base directories
+  try { FS.mkdir("/libsdl"); } catch(e) {}
+  try { FS.mkdir("/libsdl/Boxedwine"); } catch(e) {}
+  try { FS.mkdir("/libsdl/Boxedwine/root"); } catch(e) {}
+  try { FS.mkdir("/libsdl/Boxedwine/root/c"); } catch(e) {}
 
             var total = files.length;
             var done = 0;
