@@ -211,7 +211,7 @@
       bar.style.width = pct + "%";
     }
 
-    function startGame() {
+function startGame() {
       if (gameStarted) return;
       gameStarted = true;
 
@@ -243,6 +243,75 @@
             setStatus(text);
           }
         },
+
+        monitorRunDependencies: function(left) {
+          if (left === 0) {
+            setStatus("Starting...");
+            setProgress(100);
+
+            // Swap launch screen for canvas
+            setTimeout(() => {
+              document.getElementById("launch-screen").style.display = "none";
+              document.getElementById("canvas-wrapper").style.display = "block";
+              document.getElementById("fullscreen-btn").style.display = "inline-block";
+              document.getElementById("canvas").focus();
+            }, 300);
+          }
+        },
+
+        // Download progress hook
+        locateFile: function(path) {
+          return "./" + path;
+        },
+
+        // If Boxedwine uses a custom zip-loading mechanism,
+        // you may need to pass the zip URL differently.
+        // Some builds use Module.zipUrl instead of arguments:
+        zipUrl: GAME_ZIP,
+        exeName: GAME_EXE,
+
+        // Suppress the default emscripten status div
+        noInitialRun: false,
+
+        print: function(text)    { console.log("[bw]", text); },
+        printErr: function(text) { console.warn("[bw err]", text); },
+
+        // Track WASM download progress for the progress bar
+        onRuntimeInitialized: function() {
+          setStatus("Initializing...");
+          setProgress(80);
+        },
+
+        totalDependencies: 0,
+      };
+
+      // Hook into XMLHttpRequest to show download progress
+      // for the game zip and wasm file
+      const origOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url) {
+        this.addEventListener("progress", function(e) {
+          if (e.lengthComputable && url.endsWith(".zip")) {
+            const pct = Math.round((e.loaded / e.total) * 70) + 10;
+            setProgress(pct);
+            const mb = (e.loaded / 1048576).toFixed(1);
+            setStatus("Downloading: " + mb + " MB");
+          }
+        });
+        origOpen.apply(this, arguments);
+      };
+
+      // Dynamically load boxedwine.js
+      // (it will read window.Module automatically)
+      const script = document.createElement("script");
+      script.src = "./boxedwine.js";
+      script.onerror = function() {
+        setStatus("ERROR: Could not load boxedwine.js — is it in the same folder?");
+        btn.disabled = false;
+        btn.textContent = "▶ PLAY";
+        gameStarted = false;
+      };
+      document.body.appendChild(script);
+    }
 
         monitorRunDependencies: function(left) {
           if (left === 0) {
