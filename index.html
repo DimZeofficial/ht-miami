@@ -169,9 +169,23 @@
         });
     }
 
-    function extractAndLaunch(zipData) {
+function extractAndLaunch(zipData) {
+  setStatus("Loading engine...");
+  setProgress(70);
+
+  // Load Boxedwine first so FS exists, but don't run anything yet
+  window.Module = {
+    canvas: document.getElementById("canvas"),
+    noInitialRun: true,
+    locateFile: function(path) { return "./" + path; },
+    print:    function(text) { console.log("[bw]", text); },
+    printErr: function(text) { console.warn("[bw err]", text); },
+    setStatus: function(text) { if (text) setStatus(text); },
+    totalDependencies: 0,
+
+    onRuntimeInitialized: function() {
       setStatus("Extracting files...");
-      setProgress(70);
+      setProgress(75);
 
       JSZip.loadAsync(zipData).then(function(zip) {
         var files = [];
@@ -184,11 +198,9 @@
 
         var promises = files.map(function(f) {
           return f.entry.async("uint8array").then(function(data) {
-            // Strip leading "c/" prefix and write to /root/c/
             var cleanPath = f.path.replace(/^c\//, "");
             var dest = "/root/c/" + cleanPath;
 
-            // Create parent directories
             var parts = dest.split("/");
             for (var i = 1; i < parts.length - 1; i++) {
               var dir = parts.slice(0, i + 1).join("/");
@@ -197,14 +209,36 @@
 
             FS.writeFile(dest, data);
             done++;
-            setProgress(70 + Math.round((done / total) * 20));
+            setProgress(75 + Math.round((done / total) * 20));
             setStatus("Extracting: " + done + " / " + total + " files");
           });
         });
 
         return Promise.all(promises);
       }).then(function() {
-        launchBoxedwine();
+        setStatus("Starting game...");
+        setProgress(100);
+        setTimeout(function() {
+          document.getElementById("launch-screen").style.display = "none";
+          document.getElementById("canvas-wrapper").style.display = "block";
+          document.getElementById("fullscreen-btn").style.display = "inline-block";
+          document.getElementById("canvas").focus();
+          Module.callMain(["C:/HotlineMiami.exe"]);
+        }, 300);
+      }).catch(function(err) {
+        setStatus("ERROR extracting: " + err.message);
+        console.error(err);
+      });
+    }
+  };
+
+  var script = document.createElement("script");
+  script.src = "./boxedwine.js";
+  script.onerror = function() { setStatus("ERROR: Could not load boxedwine.js"); };
+  document.body.appendChild(script);
+}
+
+function launchBoxedwine() {} // no longer used
       }).catch(function(err) {
         setStatus("ERROR extracting zip: " + err.message);
         console.error(err);
