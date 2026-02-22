@@ -220,11 +220,11 @@
               var f = files[index];
               f.entry.async("uint8array").then(function(data) {
                 var cleanPath = f.path.replace(/^c\//, "");
-                var dest = "/root/c/" + cleanPath;
+                var dest = "/libsdl/Boxedwine/root/c/" + cleanPath;
 
                 // Create parent directories
                 var parts = dest.split("/");
-                for (var i = 1; i < parts.length - 1; i++) {
+                for (var i = 2; i < parts.length - 1; i++) {
                   var dir = parts.slice(0, i + 1).join("/");
                   try { FS.mkdir(dir); } catch(e) {}
                 }
