@@ -199,7 +199,7 @@
           f.entry.async("uint8array").then(function(data) {
             // Strip leading "c/" and store with full dest path
             var cleanPath = f.path.replace(/^c\//, "");
-            var dest = "/libsdl/Boxedwine/root/c/" + cleanPath;
+            var dest = "/c/" + cleanPath;
             extractedFiles[dest] = data;
             done++;
             setProgress(65 + Math.round((done / total) * 25));
@@ -222,7 +222,7 @@
 
       window.Module = {
         canvas: document.getElementById("canvas"),
-        arguments: ["C:/HotlineMiami.exe"],
+        arguments: ["-root", "/", "C:/HotlineMiami.exe"],,
         locateFile: function(path) { return "./" + path; },
         print:    function(text) { console.log("[bw]", text); },
         printErr: function(text) { console.warn("[bw err]", text); },
@@ -234,11 +234,7 @@
           console.log("preRun: writing", Object.keys(extractedFiles).length, "files to FS");
 
           // Create base dirs
-          try { FS.mkdir("/libsdl"); } catch(e) {}
-          try { FS.mkdir("/libsdl/Boxedwine"); } catch(e) {}
-          try { FS.mkdir("/libsdl/Boxedwine/root"); } catch(e) {}
-          try { FS.mkdir("/libsdl/Boxedwine/root/c"); } catch(e) {}
-
+            try { FS.mkdir("/c"); } catch(e) {}
           // Write all files synchronously — no async, no promises
           var paths = Object.keys(extractedFiles);
           for (var i = 0; i < paths.length; i++) {
@@ -247,7 +243,7 @@
 
             // Create parent dirs
             var parts = dest.split("/");
-            for (var j = 2; j < parts.length - 1; j++) {
+            for (var j = 1; j < parts.length - 1; j++) {
               var dir = parts.slice(0, j + 1).join("/");
               try { FS.mkdir(dir); } catch(e) {}
             }
