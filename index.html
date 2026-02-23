@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hotline Miami</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -90,7 +89,7 @@
   <div id="container">
     <h1>Hotline Miami</h1>
     <div id="launch-screen">
-      <p>Running via Boxedwine in your browser.<br/>First load downloads and extracts ~40MB — please wait.</p>
+      <p>Running via Boxedwine in your browser.<br/>First load downloads ~40MB — please wait.</p>
       <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
       <button id="play-btn" onclick="startGame()">&#9654; PLAY</button>
       <div id="status">Ready.</div>
@@ -104,7 +103,7 @@
 
   <script>
     var gameStarted = false;
-    var extractedFiles = {};
+    var zipDataGlobal = null;
 
     function setStatus(msg) {
       document.getElementById("status").textContent = msg;
@@ -147,14 +146,15 @@
                   zipData.set(chunks[i], offset);
                   offset += chunks[i].length;
                 }
+                zipDataGlobal = zipData;
                 console.log("Download done, bytes:", zipData.length);
-                extractZip(zipData);
+                loadEngine();
                 return;
               }
               chunks.push(result.value);
               received += result.value.length;
               if (contentLength) {
-                var pct = Math.round((received / parseInt(contentLength)) * 55) + 5;
+                var pct = Math.round((received / parseInt(contentLength)) * 75) + 5;
                 setProgress(pct);
                 setStatus("Downloading: " + (received / 1048576).toFixed(1) + " MB");
               }
@@ -169,52 +169,14 @@
         });
     }
 
-    function extractZip(zipData) {
-      setStatus("Extracting files...");
-      setProgress(65);
-
-      JSZip.loadAsync(zipData).then(function(zip) {
-        var files = [];
-        zip.forEach(function(relativePath, entry) {
-          if (!entry.dir) files.push({ path: relativePath, entry: entry });
-        });
-
-        console.log("Files in zip:", files.length);
-        var total = files.length;
-        var done = 0;
-
-        function processNext(index) {
-          if (index >= files.length) {
-            console.log("All files decompressed into memory:", Object.keys(extractedFiles).length);
-            loadEngine();
-            return;
-          }
-          var f = files[index];
-          f.entry.async("uint8array").then(function(data) {
-            var cleanPath = f.path.replace(/^c\//, "");
-            var dest = "/c/" + cleanPath;
-            extractedFiles[dest] = data;
-            done++;
-            setProgress(65 + Math.round((done / total) * 25));
-            setStatus("Extracting: " + done + " / " + total);
-            processNext(index + 1);
-          });
-        }
-
-        processNext(0);
-      }).catch(function(err) {
-        setStatus("ERROR extracting: " + err.message);
-        console.error(err);
-      });
-    }
-
     function loadEngine() {
       setStatus("Loading engine...");
-      setProgress(92);
+      setProgress(82);
 
       window.Module = {
         canvas: document.getElementById("canvas"),
-        arguments: ["-root", "/", "C:/HotlineMiami.exe"],
+        // Use -zip with a local path — we write the zip into FS in preRun
+        arguments: ["-zip", "/game.zip", "C:/HotlineMiami.exe"],
         locateFile: function(path) { return "./" + path; },
         print:    function(text) { console.log("[bw]", text); },
         printErr: function(text) { console.warn("[bw err]", text); },
@@ -223,34 +185,13 @@
         monitorRunDependencies: function(left) {},
 
         preRun: [function() {
-          console.log("preRun: writing", Object.keys(extractedFiles).length, "files to FS");
-
-          try { FS.mkdir("/c"); } catch(e) {}
-
-          var paths = Object.keys(extractedFiles);
-          for (var i = 0; i < paths.length; i++) {
-            var dest = paths[i];
-            var data = extractedFiles[dest];
-
-            var parts = dest.split("/");
-            for (var j = 1; j < parts.length - 1; j++) {
-              var dir = parts.slice(0, j + 1).join("/");
-              try { FS.mkdir(dir); } catch(e) {}
-            }
-
-            try {
-              FS.writeFile(dest, data);
-            } catch(e) {
-              console.error("Failed to write:", dest, e);
-            }
-          }
-
-          console.log("preRun: all files written");
-          try { console.log("FS /c contents:", FS.readdir("/c")); } catch(e) { console.error("readdir failed:", e); }
-
+          console.log("preRun: writing zip to FS, size:", zipDataGlobal.length);
+          // Write the raw zip bytes into Emscripten FS
+          // Boxedwine will then mount it itself via -zip
+          FS.writeFile("/game.zip", zipDataGlobal);
+          console.log("preRun: /game.zip written");
           setStatus("Starting game...");
           setProgress(100);
-
           setTimeout(function() {
             document.getElementById("launch-screen").style.display = "none";
             document.getElementById("canvas-wrapper").style.display = "block";
