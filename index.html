@@ -104,9 +104,6 @@
 
   <script>
     var gameStarted = false;
-
-    // All extracted files stored here BEFORE boxedwine loads
-    // key = full dest path, value = Uint8Array
     var extractedFiles = {};
 
     function setStatus(msg) {
@@ -134,7 +131,6 @@
       setStatus("Downloading game...");
       setProgress(5);
 
-      // Step 1: Download the zip
       fetch("https://ht-miami.67adam89.workers.dev/")
         .then(function(response) {
           var contentLength = response.headers.get("Content-Length");
@@ -173,7 +169,6 @@
         });
     }
 
-    // Step 2: Extract zip into memory BEFORE loading boxedwine
     function extractZip(zipData) {
       setStatus("Extracting files...");
       setProgress(65);
@@ -188,7 +183,6 @@
         var total = files.length;
         var done = 0;
 
-        // Decompress all files into memory sequentially
         function processNext(index) {
           if (index >= files.length) {
             console.log("All files decompressed into memory:", Object.keys(extractedFiles).length);
@@ -197,7 +191,6 @@
           }
           var f = files[index];
           f.entry.async("uint8array").then(function(data) {
-            // Strip leading "c/" and store with full dest path
             var cleanPath = f.path.replace(/^c\//, "");
             var dest = "/c/" + cleanPath;
             extractedFiles[dest] = data;
@@ -215,14 +208,13 @@
       });
     }
 
-    // Step 3: Load boxedwine — preRun writes files synchronously from memory
     function loadEngine() {
       setStatus("Loading engine...");
       setProgress(92);
 
       window.Module = {
         canvas: document.getElementById("canvas"),
-        arguments: ["-root", "/", "C:/HotlineMiami.exe"],,
+        arguments: ["-root", "/", "C:/HotlineMiami.exe"],
         locateFile: function(path) { return "./" + path; },
         print:    function(text) { console.log("[bw]", text); },
         printErr: function(text) { console.warn("[bw err]", text); },
@@ -233,15 +225,13 @@
         preRun: [function() {
           console.log("preRun: writing", Object.keys(extractedFiles).length, "files to FS");
 
-          // Create base dirs
-            try { FS.mkdir("/c"); } catch(e) {}
-          // Write all files synchronously — no async, no promises
+          try { FS.mkdir("/c"); } catch(e) {}
+
           var paths = Object.keys(extractedFiles);
           for (var i = 0; i < paths.length; i++) {
             var dest = paths[i];
             var data = extractedFiles[dest];
 
-            // Create parent dirs
             var parts = dest.split("/");
             for (var j = 1; j < parts.length - 1; j++) {
               var dir = parts.slice(0, j + 1).join("/");
@@ -256,6 +246,8 @@
           }
 
           console.log("preRun: all files written");
+          try { console.log("FS /c contents:", FS.readdir("/c")); } catch(e) { console.error("readdir failed:", e); }
+
           setStatus("Starting game...");
           setProgress(100);
 
