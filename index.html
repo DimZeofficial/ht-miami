@@ -90,7 +90,7 @@
   <div id="container">
     <h1>Hotline Miami</h1>
     <div id="launch-screen">
-      <p>Running via Boxedwine in your browser.<br/>First load downloads ~40MB — please wait.</p>
+      <p>Running via Boxedwine in your browser.<br/>First load downloads and extracts ~40MB — please wait.</p>
       <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
       <button id="play-btn" onclick="startGame()">&#9654; PLAY</button>
       <div id="status">Ready.</div>
@@ -104,7 +104,10 @@
 
   <script>
     var gameStarted = false;
-    var zipDataGlobal = null;
+
+    // All extracted files stored here BEFORE boxedwine loads
+    // key = full dest path, value = Uint8Array
+    var extractedFiles = {};
 
     function setStatus(msg) {
       document.getElementById("status").textContent = msg;
@@ -131,6 +134,7 @@
       setStatus("Downloading game...");
       setProgress(5);
 
+      // Step 1: Download the zip
       fetch("https://ht-miami.67adam89.workers.dev/")
         .then(function(response) {
           var contentLength = response.headers.get("Content-Length");
@@ -147,15 +151,14 @@
                   zipData.set(chunks[i], offset);
                   offset += chunks[i].length;
                 }
-                zipDataGlobal = zipData;
-                console.log("Download complete, size:", zipDataGlobal.length);
-                loadEngine();
+                console.log("Download done, bytes:", zipData.length);
+                extractZip(zipData);
                 return;
               }
               chunks.push(result.value);
               received += result.value.length;
               if (contentLength) {
-                var pct = Math.round((received / parseInt(contentLength)) * 60) + 5;
+                var pct = Math.round((received / parseInt(contentLength)) * 55) + 5;
                 setProgress(pct);
                 setStatus("Downloading: " + (received / 1048576).toFixed(1) + " MB");
               }
@@ -165,16 +168,57 @@
           return pump();
         })
         .catch(function(err) {
-          setStatus("ERROR fetching zip: " + err.message);
-          document.getElementById("play-btn").disabled = false;
-          document.getElementById("play-btn").textContent = "&#9654; PLAY";
+          setStatus("ERROR downloading: " + err.message);
           gameStarted = false;
         });
     }
 
+    // Step 2: Extract zip into memory BEFORE loading boxedwine
+    function extractZip(zipData) {
+      setStatus("Extracting files...");
+      setProgress(65);
+
+      JSZip.loadAsync(zipData).then(function(zip) {
+        var files = [];
+        zip.forEach(function(relativePath, entry) {
+          if (!entry.dir) files.push({ path: relativePath, entry: entry });
+        });
+
+        console.log("Files in zip:", files.length);
+        var total = files.length;
+        var done = 0;
+
+        // Decompress all files into memory sequentially
+        function processNext(index) {
+          if (index >= files.length) {
+            console.log("All files decompressed into memory:", Object.keys(extractedFiles).length);
+            loadEngine();
+            return;
+          }
+          var f = files[index];
+          f.entry.async("uint8array").then(function(data) {
+            // Strip leading "c/" and store with full dest path
+            var cleanPath = f.path.replace(/^c\//, "");
+            var dest = "/libsdl/Boxedwine/root/c/" + cleanPath;
+            extractedFiles[dest] = data;
+            done++;
+            setProgress(65 + Math.round((done / total) * 25));
+            setStatus("Extracting: " + done + " / " + total);
+            processNext(index + 1);
+          });
+        }
+
+        processNext(0);
+      }).catch(function(err) {
+        setStatus("ERROR extracting: " + err.message);
+        console.error(err);
+      });
+    }
+
+    // Step 3: Load boxedwine — preRun writes files synchronously from memory
     function loadEngine() {
       setStatus("Loading engine...");
-      setProgress(70);
+      setProgress(92);
 
       window.Module = {
         canvas: document.getElementById("canvas"),
@@ -185,82 +229,46 @@
         setStatus: function(text) {},
         totalDependencies: 0,
         monitorRunDependencies: function(left) {},
-        onRuntimeInitialized: function() {},
 
         preRun: [function() {
-          console.log("preRun fired, adding dependency");
-          Module.addRunDependency("extract-zip");
+          console.log("preRun: writing", Object.keys(extractedFiles).length, "files to FS");
 
-          setStatus("Extracting files...");
-          setProgress(75);
+          // Create base dirs
+          try { FS.mkdir("/libsdl"); } catch(e) {}
+          try { FS.mkdir("/libsdl/Boxedwine"); } catch(e) {}
+          try { FS.mkdir("/libsdl/Boxedwine/root"); } catch(e) {}
+          try { FS.mkdir("/libsdl/Boxedwine/root/c"); } catch(e) {}
 
-          console.log("zipDataGlobal size:", zipDataGlobal ? zipDataGlobal.length : "NULL");
+          // Write all files synchronously — no async, no promises
+          var paths = Object.keys(extractedFiles);
+          for (var i = 0; i < paths.length; i++) {
+            var dest = paths[i];
+            var data = extractedFiles[dest];
 
-          JSZip.loadAsync(zipDataGlobal).then(function(zip) {
-            var files = [];
-            zip.forEach(function(relativePath, entry) {
-              if (!entry.dir) files.push({ path: relativePath, entry: entry });
-            });
-            console.log("files to extract:", files.length);
-
-            // Pre-create base directories
-            try { FS.mkdir("/libsdl"); } catch(e) {}
-            try { FS.mkdir("/libsdl/Boxedwine"); } catch(e) {}
-            try { FS.mkdir("/libsdl/Boxedwine/root"); } catch(e) {}
-            try { FS.mkdir("/libsdl/Boxedwine/root/c"); } catch(e) {}
-            console.log("base dirs created");
-
-            var total = files.length;
-            var done = 0;
-
-            function processNext(index) {
-              if (index >= files.length) {
-                console.log("all files extracted, removing dependency");
-                Module.removeRunDependency("extract-zip");
-                setStatus("Starting game...");
-                setProgress(100);
-                setTimeout(function() {
-                  document.getElementById("launch-screen").style.display = "none";
-                  document.getElementById("canvas-wrapper").style.display = "block";
-                  document.getElementById("fullscreen-btn").style.display = "inline-block";
-                  document.getElementById("canvas").focus();
-                }, 300);
-                return;
-              }
-
-              var f = files[index];
-              f.entry.async("uint8array").then(function(data) {
-                var cleanPath = f.path.replace(/^c\//, "");
-                var dest = "/libsdl/Boxedwine/root/c/" + cleanPath;
-
-                var parts = dest.split("/");
-                for (var i = 2; i < parts.length - 1; i++) {
-                  var dir = parts.slice(0, i + 1).join("/");
-                  try { FS.mkdir(dir); } catch(e) {}
-                }
-
-                try {
-                  FS.writeFile(dest, data);
-                } catch(e) {
-                  console.error("writeFile failed for", dest, e);
-                }
-
-                done++;
-                setProgress(75 + Math.round((done / total) * 20));
-                setStatus("Extracting: " + done + " / " + total + " files");
-                processNext(index + 1);
-              }).catch(function(err) {
-                console.error("ERROR on file", f.path, err);
-                setStatus("ERROR on file " + f.path + ": " + err.message);
-              });
+            // Create parent dirs
+            var parts = dest.split("/");
+            for (var j = 2; j < parts.length - 1; j++) {
+              var dir = parts.slice(0, j + 1).join("/");
+              try { FS.mkdir(dir); } catch(e) {}
             }
 
-            processNext(0);
+            try {
+              FS.writeFile(dest, data);
+            } catch(e) {
+              console.error("Failed to write:", dest, e);
+            }
+          }
 
-          }).catch(function(err) {
-            setStatus("ERROR extracting zip: " + err.message);
-            console.error("JSZip error:", err);
-          });
+          console.log("preRun: all files written");
+          setStatus("Starting game...");
+          setProgress(100);
+
+          setTimeout(function() {
+            document.getElementById("launch-screen").style.display = "none";
+            document.getElementById("canvas-wrapper").style.display = "block";
+            document.getElementById("fullscreen-btn").style.display = "inline-block";
+            document.getElementById("canvas").focus();
+          }, 200);
         }]
       };
 
